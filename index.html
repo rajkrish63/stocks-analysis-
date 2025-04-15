@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: grey;
+      background: #f4f4f4;
       margin: 0;
       padding: 20px;
     }
@@ -21,7 +21,7 @@
       flex-wrap: wrap;
     }
     .stock-table {
-      width: 45%;
+      width: 65%;
       background: white;
       padding: 20px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -46,11 +46,37 @@
     .loss {
       color: red;
     }
+    #loading {
+      text-align: center;
+      margin-top: 50px;
+    }
+    #progress-bar {
+      width: 80%;
+      background-color: #ddd;
+      border-radius: 10px;
+      margin: 10px auto;
+      height: 20px;
+    }
+    #progress-bar div {
+      height: 100%;
+      background-color: #4caf50;
+      border-radius: 10px;
+    }
+    #loading-text {
+      font-size: 18px;
+    }
   </style>
 </head>
 <body>
 
   <h1>Live Stock Dashboard</h1>
+
+  <div id="loading" style="display: block;">
+    <p id="loading-text">Loading... 0%</p>
+    <div id="progress-bar">
+      <div style="width: 0%;"></div>
+    </div>
+  </div>
 
   <div class="stocks-section" id="stockData" style="display: none;">
     <div class="stock-table">
@@ -141,13 +167,18 @@
       const symbols = [...usSymbols, ...inSymbols]; // Merge both symbol lists
 
       const stockData = [];
+      let processedCount = 0;
 
-      // Fetch stock data for each symbol
+      // Fetch stock data for each symbol and update the progress bar
       for (const { symbol, name } of symbols) {
         const data = await getStockData(symbol);
         if (data) {
           stockData.push({ ...data, name });
         }
+        processedCount++;
+
+        // Update the progress bar
+        updateLoadingProgress(processedCount, symbols.length);
       }
 
       // Get the top gainers and losers
@@ -180,8 +211,16 @@
         `;
       });
 
-      // Show the stock data section
+      // Hide the loading screen and show the stock data
+      document.getElementById('loading').style.display = 'none';
       document.getElementById('stockData').style.display = 'block';
+    }
+
+    // Function to update the loading progress bar
+    function updateLoadingProgress(processedCount, totalCount) {
+      const percentage = Math.round((processedCount / totalCount) * 100);
+      document.getElementById('loading-text').innerText = `Loading... ${percentage}%`;
+      document.getElementById('progress-bar').children[0].style.width = `${percentage}%`;
     }
 
     // Initial data load
