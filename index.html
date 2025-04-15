@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Stock Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: grey;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .stocks-section {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+    .stock-table {
+      width: 45%;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    .gain {
+      color: green;
+    }
+    .loss {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Live Stock Dashboard</h1>
+
+  <div class="stocks-section" id="stockData" style="display: none;">
+    <div class="stock-table">
+      <h2>Top Gainers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Stock Name</th>
+            <th>Price</th>
+            <th>Change (%)</th>
+          </tr>
+        </thead>
+        <tbody id="gainers"></tbody>
+      </table>
+    </div>
+
+    <div class="stock-table">
+      <h2>Top Losers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Stock Name</th>
+            <th>Price</th>
+            <th>Change (%)</th>
+          </tr>
+        </thead>
+        <tbody id="losers"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const apiKey = 'cvv7v6hr01qi0bq3hre0cvv7v6hr01qi0bq3hreg'; // Replace with your Finnhub API key
+
+    // Function to fetch all symbols and their names for a given exchange
+    async function getAllSymbols(exchange) {
+      try {
+        const response = await fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=${exchange}&token=${apiKey}`);
+        const data = await response.json();
+        
+        // Log the response to inspect its structure
+        console.log("API Response:", data);
+        
+        // Check if the data is an array and process it
+        if (Array.isArray(data)) {
+          return data.slice(0, 100).map(item => ({
+            symbol: item.symbol,
+            name: item.description // Assuming 'description' field contains the stock name
+          }));
+        } else {
+          console.error("Unexpected data format:", data);
+          return []; // Return empty array if the data format is not as expected
+        }
+      } catch (error) {
+        console.error("Error fetching symbols:", error);
+        return [];
+      }
+    }
+
+    // Function to get stock data for a specific symbol
+    async function getStockData(symbol) {
+      try {
+        const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        // Ensure the data contains valid stock information
+        if (data && data.c && data.pc) {
+          const changePercent = (((data.c - data.pc) / data.pc) * 100).toFixed(2);
+          return {
+            symbol: symbol,
+            price: data.c,
+            changePercent: parseFloat(changePercent)
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching data for ${symbol}:`, error);
+        return null;
+      }
+    }
+
+    // Function to load top gainers and losers and populate the tables
+    async function loadStocks() {
+      const usSymbols = await getAllSymbols('US'); // Fetch US symbols
+      const inSymbols = await getAllSymbols('IN'); // Fetch Indian symbols
+      const symbols = [...usSymbols, ...inSymbols]; // Merge both symbol lists
+
+      const stockData = [];
+
+      // Fetch stock data for each symbol
+      for (const { symbol, name } of symbols) {
+        const data = await getStockData(symbol);
+        if (data) {
+          stockData.push({ ...data, name });
+        }
+      }
+
+      // Get the top gainers and losers
+      const gainers = stockData.filter(s => s.changePercent > 0).sort((a, b) => b.changePercent - a.changePercent).slice(0, 5);
+      const losers = stockData.filter(s => s.changePercent < 0).sort((a, b) => a.changePercent - b.changePercent).slice(0, 5);
+
+      // Populate the top gainers table
+      const gainersTable = document.getElementById('gainers');
+      gainers.forEach(stock => {
+        gainersTable.innerHTML += `
+          <tr>
+            <td>${stock.symbol}</td>
+            <td>${stock.name}</td>
+            <td>$${stock.price}</td>
+            <td class="gain">+${stock.changePercent}%</td>
+          </tr>
+        `;
+      });
+
+      // Populate the top losers table
+      const losersTable = document.getElementById('losers');
+      losers.forEach(stock => {
+        losersTable.innerHTML += `
+          <tr>
+            <td>${stock.symbol}</td>
+            <td>${stock.name}</td>
+            <td>$${stock.price}</td>
+            <td class="loss">${stock.changePercent}%</td>
+          </tr>
+        `;
+      });
+
+      // Show the stock data section
+      document.getElementById('stockData').style.display = 'block';
+    }
+
+    // Initial data load
+    loadStocks();
+
+    // Set auto-refresh every 30 seconds (30,000 ms)
+    setInterval(loadStocks, 30000); // 30 seconds
+
+  </script>
+
+</body>
+</html>
